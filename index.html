@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kerem Gök</title>
+<meta name="description" content="Kerem Gök — GitHub projelerinin yıldız haritası.">
+<meta property="og:title" content="Kerem Gök">
+<meta property="og:description" content="Her depo bir yıldız. GitHub projelerimin gözlemevi.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080c26'/%3E%3Cpath d='M16 5l2.6 8.4L27 16l-8.4 2.6L16 27l-2.6-8.4L5 16l8.4-2.6z' fill='%23ffb54a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap">
+<script>
+  try { var t = localStorage.getItem("gok-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+/* Layout: an observatory. Full-bleed live star chart as the hero, then a left-aligned
+   instrument panel, a star catalogue (one row per repo) and an observation log. */
+:root {
+  --sky: #e9eef8;          /* day: printed star-atlas paper, blue-tinted */
+  --sky-deep: #dbe3f3;
+  --paper: #f7f9fd;
+  --ink: #121738;
+  --ink-soft: #505a80;
+  --line: rgba(18, 23, 56, 0.14);
+  --line-strong: rgba(18, 23, 56, 0.34);
+  --sun: #c2410c;          /* the one warm accent: sun by day, bright star by night */
+  --sun-soft: rgba(194, 65, 12, 0.11);
+  --azure: #2f4fd0;
+  --star: #1b2150;
+  --horizon: rgba(247, 205, 170, 0.75);
+
+  --font-display: "Bricolage Grotesque", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem);
+  --step-3: clamp(2.2rem, 1.4rem + 3.4vw, 4rem);
+  --step-hero: clamp(4.2rem, 1rem + 14vw, 12rem);
+  --radius: 999px;
+  --header-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky: #080c26; --sky-deep: #10173d; --paper: #121a46;
+    --ink: #eceffd; --ink-soft: #a3abd6;
+    --line: rgba(236, 239, 253, 0.13); --line-strong: rgba(236, 239, 253, 0.32);
+    --sun: #ffb54a; --sun-soft: rgba(255, 181, 74, 0.13);
+    --azure: #93a8ff; --star: #fff4d6; --horizon: rgba(70, 52, 150, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sky: #080c26; --sky-deep: #10173d; --paper: #121a46;
+  --ink: #eceffd; --ink-soft: #a3abd6;
+  --line: rgba(236, 239, 253, 0.13); --line-strong: rgba(236, 239, 253, 0.32);
+  --sun: #ffb54a; --sun-soft: rgba(255, 181, 74, 0.13);
+  --azure: #93a8ff; --star: #fff4d6; --horizon: rgba(70, 52, 150, 0.55);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .5s ease, color .5s ease;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.mono { font-family: var(--font-mono); font-variation-settings: "wdth" 88; }
+.wrap { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 44px); }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-soft);
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+}
+.skip { position: absolute; left: -999px; top: 8px; }
+.skip:focus { left: 16px; z-index: 50; background: var(--paper); padding: .5rem .9rem; }
+
+/* ——— Header ——— */
+.site-header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--sky) 72%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.header-inner { height: var(--header-h); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: inline-flex; align-items: center; gap: .6rem; text-decoration: none; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; }
+.brand svg { width: 22px; height: 22px; color: var(--sun); transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+.brand:hover svg { transform: rotate(90deg); }
+.nav { display: flex; gap: 1.6rem; font-size: .92rem; }
+.nav a { text-decoration: none; color: var(--ink-soft); transition: color .2s; }
+.nav a:hover { color: var(--ink); }
+.controls { display: flex; gap: .5rem; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: .45rem; height: 36px; padding: 0 .85rem;
+  border: 1px solid var(--line-strong); border-radius: var(--radius); background: transparent;
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; transition: background-color .2s, border-color .2s;
+}
+.chip:hover { background: var(--sun-soft); border-color: var(--sun); }
+.chip svg { width: 15px; height: 15px; }
+.chip .i-moon { display: none; }
+.is-dark .chip .i-sun { display: none; }
+.is-dark .chip .i-moon { display: block; }
+@media (max-width: 760px) { .nav { display: none; } }
+
+/* ——— Hero / sky ——— */
+.hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  background:
+    radial-gradient(90% 70% at 78% 118%, var(--horizon), transparent 70%),
+    var(--sky);
+  border-bottom: 1px solid var(--line);
+}
+.sky { position: absolute; inset: 0; z-index: -1; display: block; touch-action: pan-y; }
+.hero-inner { padding-block: clamp(4rem, 9vw, 7.5rem) clamp(2.5rem, 5vw, 4rem); display: grid; gap: 1.6rem; }
+.hero .eyebrow .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 0 var(--sun-soft); animation: pulse 2.4s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--sun); } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.hero .eyebrow a { color: var(--ink); text-decoration-color: var(--sun); text-underline-offset: 3px; }
+.name {
+  font-family: var(--font-display); font-size: var(--step-hero); line-height: .84;
+  letter-spacing: -0.045em; display: flex; flex-direction: column; margin-top: .4rem;
+}
+.name .first { font-weight: 250; font-variation-settings: "wdth" 75, "opsz" 96; color: var(--ink-soft); }
+.name .last { font-weight: 800; font-variation-settings: "wdth" 100, "opsz" 96; position: relative; width: fit-content; }
+.name .spark {
+  position: absolute; right: -0.38em; top: .02em; font-size: .28em; color: var(--sun);
+  animation: spin 14s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.definition {
+  font-size: .78rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: baseline;
+  padding-left: .9rem; border-left: 2px solid var(--sun); max-width: 34rem;
+}
+.definition b { color: var(--ink); font-weight: 600; }
+.lead { font-size: var(--step-1); line-height: 1.5; max-width: 34rem; color: var(--ink); }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .4rem; }
+.btn {
+  display: inline-flex; align-items: center; gap: .55rem; height: 50px; padding: 0 1.4rem;
+  border-radius: var(--radius); text-decoration: none; font-weight: 600; font-size: .95rem;
+  border: 1px solid var(--ink); transition: background-color .2s, color .2s, border-color .2s, transform .2s;
+}
+.btn-primary { background: var(--ink); color: var(--sky); }
+.btn-primary:hover { background: var(--sun); border-color: var(--sun); color: var(--sky); }
+.btn-ghost { background: color-mix(in srgb, var(--sky) 60%, transparent); }
+.btn-ghost:hover { border-color: var(--sun); color: var(--sun); }
+.btn svg { width: 17px; height: 17px; }
+.hero-foot {
+  display: flex; justify-content: space-between; gap: .5rem 1.5rem; flex-wrap: wrap;
+  padding-block: 0 1.4rem; font-size: .68rem; letter-spacing: .06em; color: var(--ink-soft);
+}
+.readout { color: var(--ink); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--sun); font-weight: 500; }
+
+/* ——— Instrument panel ——— */
+.panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.stat { padding: 1.6rem clamp(.8rem, 2vw, 1.6rem) 1.8rem; display: grid; gap: .3rem; min-width: 0; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat dt { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-variation-settings: "wdth" 88; }
+.stat dd { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--step-3); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(3) { border-left: 0; }
+  .stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+/* ——— Sections ——— */
+.section { padding-block: clamp(4rem, 9vw, 7rem); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 1.2rem 3rem; align-items: end; margin-bottom: clamp(2rem, 4vw, 3rem); }
+.section-head h2 { font-family: var(--font-display); font-size: var(--step-3); font-weight: 600; line-height: 1.02; letter-spacing: -0.035em; margin-top: .8rem; font-variation-settings: "wdth" 85; }
+.section-head p.sub { color: var(--ink-soft); max-width: 32rem; }
+@media (max-width: 860px) { .section-head { grid-template-columns: minmax(0, 1fr); } }
+
+/* Spectrum (language mix) */
+.spectrum { margin-bottom: 2.4rem; display: grid; gap: .8rem; }
+.spectrum-bar { display: flex; height: 12px; border-radius: var(--radius); overflow: hidden; background: var(--sky-deep); gap: 2px; }
+.spectrum-bar span { background: var(--c); transition: flex-grow .8s cubic-bezier(.2,.8,.2,1); min-width: 4px; }
+.spectrum-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; font-family: var(--font-mono); font-size: .7rem; color: var(--ink-soft); font-variation-settings: "wdth" 88; }
+.spectrum-legend span { display: inline-flex; align-items: center; gap: .45rem; }
+.spectrum-legend b { color: var(--ink); font-weight: 500; }
+
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--ink-soft)); box-shadow: 0 0 0 2px var(--sky), 0 0 0 3px var(--line-strong); flex: none; }
+
+.note {
+  display: flex; gap: .7rem; align-items: flex-start; padding: .9rem 1.1rem; margin-bottom: 1.6rem;
+  background: var(--sun-soft); border-radius: 14px; font-size: .9rem; max-width: 52rem;
+}
+.note svg { width: 18px; height: 18px; flex: none; color: var(--sun); margin-top: 2px; }
+
+/* Catalogue */
+.catalog { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.cat-row, .cat-head {
+  display: grid; grid-template-columns: 6.8rem minmax(0, 1fr) 10.5rem 6.5rem 8.5rem;
+  gap: 1rem; align-items: baseline; padding: 1.15rem .9rem;
+}
+.cat-head { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); padding-block: .6rem; font-variation-settings: "wdth" 88; }
+.cat-row {
+  border-top: 1px solid var(--line); text-decoration: none; position: relative;
+  transition: background-color .25s;
+}
+.cat-row::before {
+  content: ""; position: absolute; left: 0; top: -1px; height: 1px; width: 0; background: var(--sun);
+  transition: width .5s cubic-bezier(.2,.8,.2,1);
+}
+.cat-row:hover, .cat-row:focus-visible, .cat-row.is-hl { background: var(--sun-soft); }
+.cat-row:hover::before, .cat-row:focus-visible::before, .cat-row.is-hl::before { width: 100%; }
+.cat-row.flash { animation: flash 1.6s ease; }
+@keyframes flash { 0%, 40% { background: var(--sun-soft); box-shadow: inset 3px 0 0 var(--sun); } 100% { background: transparent; box-shadow: inset 0 0 0 transparent; } }
+.c-no { font-family: var(--font-mono); font-size: .74rem; color: var(--sun); font-variant-numeric: tabular-nums; display: flex; flex-direction: column; gap: .3rem; align-items: flex-start; }
+.badge { font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: .05rem .45rem; }
+.c-obj { min-width: 0; display: grid; gap: .2rem; }
+.c-obj strong { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; overflow-wrap: anywhere; }
+.c-obj strong .arrow { display: inline-block; color: var(--sun); opacity: 0; transform: translate(-4px, 4px); transition: opacity .2s, transform .25s; margin-left: .3rem; font-weight: 400; }
+.cat-row:hover .arrow, .cat-row:focus-visible .arrow { opacity: 1; transform: none; }
+.c-obj span { color: var(--ink-soft); font-size: .93rem; max-width: 46ch; }
+.c-cls, .c-mag, .c-seen { font-family: var(--font-mono); font-size: .76rem; font-variation-settings: "wdth" 88; font-variant-numeric: tabular-nums; }
+.c-cls { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.c-mag { display: flex; align-items: center; gap: .5rem; }
+.c-mag i { display: inline-block; border-radius: 50%; background: var(--sun); flex: none; }
+.c-seen { color: var(--ink-soft); }
+.cat-empty { padding: 2rem .9rem; color: var(--ink-soft); font-family: var(--font-mono); font-size: .8rem; border-top: 1px solid var(--line); }
+@media (max-width: 860px) {
+  .cat-head { display: none; }
+  .cat-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "no mag" "obj obj" "cls seen"; gap: .55rem 1rem; padding-inline: .4rem; }
+  .c-no { grid-area: no; flex-direction: row; align-items: center; } .c-obj { grid-area: obj; } .c-cls { grid-area: cls; }
+  .c-mag { grid-area: mag; justify-self: end; } .c-seen { grid-area: seen; justify-self: end; }
+}
+
+/* Observation log */
+.log-wrap { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 2rem 4rem; }
+.log { list-style: none; margin: 0; padding: 0; position: relative; }
+.log::before { content: ""; position: absolute; left: 5px; top: .6rem; bottom: .6rem; width: 1px; background: var(--line-strong); }
+.log li { position: relative; padding: 0 0 1.8rem 2.2rem; display: grid; gap: .15rem; }
+.log li:last-child { padding-bottom: 0; }
+.log li::before { content: ""; position: absolute; left: 0; top: .45rem; width: 11px; height: 11px; border-radius: 50%; background: var(--sky); border: 2px solid var(--sun); }
+.log li:first-child::before { background: var(--sun); }
+.log time { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; font-variation-settings: "wdth" 88; }
+.log p { font-size: 1.08rem; }
+.log p a { text-decoration-color: var(--sun); text-underline-offset: 3px; }
+@media (max-width: 860px) { .log-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+/* Signal / contact */
+.signal { background: var(--ink); color: var(--sky); position: relative; overflow: hidden; }
+.signal .eyebrow { color: color-mix(in srgb, var(--sky) 70%, transparent); }
+.signal-inner { padding-block: clamp(4.5rem, 10vw, 8rem); display: grid; gap: 1.6rem; }
+.signal h2 { font-family: var(--font-display); font-size: var(--step-3); font-weight: 300; letter-spacing: -0.035em; line-height: 1.02; max-width: 16ch; font-variation-settings: "wdth" 80; }
+.signal h2 em { font-style: normal; font-weight: 700; color: var(--sun); font-variation-settings: "wdth" 100; }
+.signal p.sub { max-width: 36rem; color: color-mix(in srgb, var(--sky) 78%, transparent); }
+.big-link {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.03em;
+  font-size: clamp(1.6rem, .9rem + 3.6vw, 3.6rem); text-decoration: none; width: fit-content; max-width: 100%;
+  overflow-wrap: anywhere; display: inline-flex; align-items: baseline; gap: .4em;
+  background: linear-gradient(var(--sun), var(--sun)) left bottom / 0 3px no-repeat; padding-bottom: .1em;
+  transition: background-size .5s cubic-bezier(.2,.8,.2,1), color .2s;
+}
+.big-link:hover, .big-link:focus-visible { background-size: 100% 3px; color: var(--sun); }
+.big-link span { font-weight: 300; }
+.mail-row { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; font-family: var(--font-mono); font-size: .85rem; }
+.mail-row code { user-select: all; padding: .45rem .8rem; border: 1px solid color-mix(in srgb, var(--sky) 30%, transparent); border-radius: var(--radius); }
+.mail-row button { height: 36px; padding: 0 1rem; border-radius: var(--radius); border: 0; background: var(--sun); color: var(--ink); cursor: pointer; font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+.orbit { position: absolute; right: -8rem; top: 50%; width: 30rem; height: 30rem; translate: 0 -50%; border: 1px dashed color-mix(in srgb, var(--sky) 22%, transparent); border-radius: 50%; pointer-events: none; animation: spin 60s linear infinite; }
+.orbit::after { content: ""; position: absolute; top: 50%; left: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 24px var(--sun); }
+.orbit.o2 { width: 46rem; height: 46rem; right: -16rem; animation-duration: 110s; animation-direction: reverse; }
+@media (max-width: 760px) { .orbit { opacity: .5; } }
+
+footer { border-top: 1px solid var(--line); }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .8rem 2rem; padding-block: 1.6rem; font-family: var(--font-mono); font-size: .7rem; color: var(--ink-soft); font-variation-settings: "wdth" 88; }
+.foot a { text-decoration: none; } .foot a:hover { color: var(--sun); }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); translate: -50% 0; z-index: 40;
+  background: var(--ink); color: var(--sky); padding: .7rem 1.1rem; border-radius: var(--radius);
+  font-family: var(--font-mono); font-size: .75rem; opacity: 0; transform: translateY(10px); pointer-events: none;
+  transition: opacity .25s, transform .25s;
+}
+.toast.show { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#catalog" data-i18n="skip">Kataloğa geç</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#sky">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.3 8.2 8.2 2.3-8.2 2.3L12 22.5l-2.3-8.2L1.5 12l8.2-2.3z"/></svg>
+      <span data-name-full>Kerem Gök</span>
+    </a>
+    <nav class="nav" aria-label="Ana menü">
+      <a href="#catalog" data-i18n="nav_catalog">Katalog</a>
+      <a href="#log" data-i18n="nav_log">Seyir defteri</a>
+      <a href="#signal" data-i18n="nav_contact">İletişim</a>
+    </nav>
+    <div class="controls">
+      <button class="chip" id="langBtn" type="button">EN</button>
+      <button class="chip" id="themeBtn" type="button">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <span id="themeLabel">Gündüz</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="sky">
+    <canvas class="sky" id="skyCanvas" aria-hidden="true"></canvas>
+    <div class="wrap hero-inner">
+      <p class="eyebrow"><span class="pulse" aria-hidden="true"></span><span data-i18n="eyebrow">Kişisel gözlemevi</span> · <a id="handle" href="https://github.com/keremgoek" target="_blank" rel="noreferrer">@keremgoek</a></p>
+      <h1 class="name"><span class="first" data-name-first>Kerem</span><span class="last"><span data-name-last>Gök</span><span class="spark" aria-hidden="true">✦</span></span></h1>
+      <p class="definition mono"><b>gök</b><i>/ɟœk/</i><span data-i18n="def_word">isim</span><span>—</span><span data-i18n="def_text">gökyüzü; başımızın üstündeki mavi boşluk.</span></p>
+      <p class="lead" data-i18n="lead">Kod yazıyorum, öğreniyorum ve yaptıklarımı burada bir yıldız kataloğu gibi topluyorum. Her depo bir yıldız; parlaklığı aldığı ★ sayısı kadar.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#catalog"><span data-i18n="cta_catalog">Kataloğa göz at</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg></a>
+        <a class="btn btn-ghost" id="ghLink" href="https://github.com/keremgoek" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5Z"/></svg><span data-i18n="cta_github">GitHub profili</span></a>
+      </div>
+    </div>
+    <div class="wrap hero-foot mono">
+      <span id="hint" data-i18n="hint">İmleci gökyüzünde gezdir; işaretli yıldızlar depolarım.</span>
+      <span class="readout" id="readout" aria-live="off">RA 12h 00m 00s · Dec +00° 00′</span>
+    </div>
+  </section>
+
+  <section aria-label="İstatistikler">
+    <dl class="wrap panel" id="panel">
+      <div class="stat"><dt data-i18n="stat_repos">Gözlenen depo</dt><dd id="s-repos">—</dd></div>
+      <div class="stat"><dt data-i18n="stat_stars">Toplam ★</dt><dd id="s-stars">—</dd></div>
+      <div class="stat"><dt data-i18n="stat_followers">Takipçi</dt><dd id="s-followers">—</dd></div>
+      <div class="stat"><dt data-i18n="stat_since">Gözlem başlangıcı</dt><dd id="s-since">—</dd></div>
+    </dl>
+  </section>
+
+  <section class="section" id="catalog">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow" data-i18n="catalog_eyebrow">Yıldız kataloğu</p>
+          <h2 data-i18n="catalog_title">Depolarım, en son üzerinde çalıştığımdan başlayarak.</h2>
+        </div>
+        <p class="sub" data-i18n="catalog_lead">Katalog numarası, depo adı, spektral sınıf (dil), parlaklık (★) ve son gözlem. Bir satıra tıkla, depo açılsın.</p>
+      </div>
+
+      <div class="note" id="note" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span id="noteText"></span>
+      </div>
+
+      <div class="spectrum" id="spectrum" aria-label="Spektrum">
+        <p class="eyebrow"><span data-i18n="spectrum">Spektrum</span> · <span data-i18n="spectrum_note">depoların dil dağılımı</span></p>
+        <div class="spectrum-bar" id="specBar"></div>
+        <div class="spectrum-legend" id="specLegend"></div>
+      </div>
+
+      <div class="cat-head" aria-hidden="true">
+        <span data-i18n="col_no">Kat. no</span><span data-i18n="col_name">Cisim</span><span data-i18n="col_class">Spektral sınıf</span><span data-i18n="col_mag">Parlaklık</span><span data-i18n="col_seen">Son gözlem</span>
+      </div>
+      <ol class="catalog" id="catalogList">
+        <li class="cat-empty" data-i18n="loading">Gökyüzü taranıyor…</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="log" style="padding-top:0">
+    <div class="wrap log-wrap">
+      <div class="section-head" style="grid-template-columns:minmax(0,1fr);align-items:start">
+        <div>
+          <p class="eyebrow" data-i18n="log_eyebrow">Seyir defteri</p>
+          <h2 data-i18n="log_title">Kayda geçen anlar.</h2>
+        </div>
+        <p class="sub" data-i18n="log_lead">GitHub verisinden otomatik derlenir; en yenisi en üstte.</p>
+      </div>
+      <ol class="log" id="logList"></ol>
+    </div>
+  </section>
+
+  <section class="signal" id="signal">
+    <div class="orbit" aria-hidden="true"></div>
+    <div class="orbit o2" aria-hidden="true"></div>
+    <div class="wrap signal-inner">
+      <p class="eyebrow" data-i18n="contact_eyebrow">Sinyal gönder</p>
+      <h2><span data-i18n="contact_title_a">Birlikte bir şey</span> <em data-i18n="contact_title_b">inşa edelim.</em></h2>
+      <p class="sub" data-i18n="contact_lead">Bir proje fikrin, bir hata bildirimin ya da bir önerin varsa bana GitHub üzerinden ulaş.</p>
+      <a class="big-link" id="bigLink" href="https://github.com/keremgoek" target="_blank" rel="noreferrer">github.com/keremgoek <span aria-hidden="true">↗</span></a>
+      <div class="mail-row" id="mailRow" hidden>
+        <code id="mailText"></code>
+        <button type="button" id="copyBtn" data-i18n="copy">Kopyala</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>© <span id="year">2026</span> <span data-name-full>Kerem Gök</span> · <span data-i18n="footer">Bu gökyüzü her ziyarette yeniden çizilir.</span></span>
+    <a href="#sky" data-i18n="to_top">Yukarı ↑</a>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  /* ========= Düzenle: sayfanın tüm kişisel ayarları burada ========= */
+  const CONFIG = {
+    username: "keremgoek",     // GitHub kullanıcı adın
+    name: "Kerem Gök",         // Sayfada görünen ad (ilk kelime ince, son kelime kalın yazılır)
+    email: "",                 // İstersen e-posta ekle; boş kalırsa gizlenir
+    maxRepos: 12,              // Katalogda en fazla kaç depo görünsün
+    hideForks: true,           // Fork'ları gizle
+    pinned: [],                // Başa sabitlenecek depo adları, örn. ["proje-a", "proje-b"]
+    log: [                     // Seyir defterine elle eklenecek anlar (isteğe bağlı)
+      // { date: "2026-09-01", tr: "İlk açık kaynak katkım birleştirildi.", en: "My first open-source contribution was merged." }
+    ]
+  };
+  /* ================================================================= */
+
+  const root = document.documentElement;
+  const $ = (s) => document.querySelector(s);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const darkMQ = matchMedia("(prefers-color-scheme: dark)");
+  const profileUrl = `https://github.com/${CONFIG.username}`;
+
+  const I18N = {
+    tr: {
+      skip: "Kataloğa geç", nav_catalog: "Katalog", nav_log: "Seyir defteri", nav_contact: "İletişim",
+      theme_day: "Gündüz", theme_night: "Gece", to_day: "Gündüz moduna geç", to_night: "Gece moduna geç", lang_to: "Switch to English",
+      eyebrow: "Kişisel gözlemevi", def_word: "isim", def_text: "gökyüzü; başımızın üstündeki mavi boşluk.",
+      lead: "Kod yazıyorum, öğreniyorum ve yaptıklarımı burada bir yıldız kataloğu gibi topluyorum. Her depo bir yıldız; parlaklığı aldığı ★ sayısı kadar.",
+      cta_catalog: "Kataloğa göz at", cta_github: "GitHub profili",
+      hint: "İmleci gökyüzünde gezdir; işaretli yıldızlar depolarım.", hint_touch: "Gökyüzüne dokun; işaretli yıldızlar depolarım.",
+      stat_repos: "Açık depo", stat_stars: "Toplam ★", stat_followers: "Takipçi", stat_since: "Gözlem başlangıcı",
+      catalog_eyebrow: "Yıldız kataloğu", catalog_title: "Depolarım, en son üzerinde çalıştığımdan başlayarak.",
+      catalog_lead: "Katalog numarası, depo adı, spektral sınıf (dil), parlaklık (★) ve son gözlem. Bir satıra tıkla, depo açılsın.",
+      col_no: "Kat. no", col_name: "Cisim", col_class: "Spektral sınıf", col_mag: "Parlaklık", col_seen: "Son gözlem",
+      spectrum: "Spektrum", spectrum_note: "depoların dil dağılımı",
+      example_note: "Henüz herkese açık depo yok, bu yüzden örnek kayıtlar gösteriliyor. GitHub'da açık bir depo oluşturduğunda katalog kendiliğinden dolar.",
+      error_note: "GitHub'a şu an ulaşılamadı, bu yüzden örnek kayıtlar gösteriliyor. Birkaç dakika sonra sayfayı yenile.",
+      loading: "Gökyüzü taranıyor…", no_desc: "Açıklama eklenmemiş.", unknown_lang: "Sınıflandırılmamış", example: "örnek",
+      log_eyebrow: "Seyir defteri", log_title: "Kayda geçen anlar.", log_lead: "GitHub verisinden otomatik derlenir; en yenisi en üstte.",
+      log_joined: "GitHub'a katıldım. Gözlem başladı.", log_first: "İlk açık depo yayınlandı: {name}", log_latest: "Son gözlem: {name} güncellendi.",
+      log_none: "Kayıt bekleniyor. GitHub verisi gelince burası dolacak.",
+      contact_eyebrow: "Sinyal gönder", contact_title_a: "Birlikte bir şey", contact_title_b: "inşa edelim.",
+      contact_lead: "Bir proje fikrin, bir hata bildirimin ya da bir önerin varsa bana GitHub üzerinden ulaş.",
+      copy: "Kopyala", copied: "E-posta kopyalandı", copy_fail: "Kopyalanamadı. Adresi seçip elle kopyala.",
+      footer: "Bu gökyüzü her ziyarette yeniden çizilir.", to_top: "Yukarı ↑"
+    },
+    en: {
+      skip: "Skip to catalogue", nav_catalog: "Catalogue", nav_log: "Logbook", nav_contact: "Contact",
+      theme_day: "Day", theme_night: "Night", to_day: "Switch to day mode", to_night: "Switch to night mode", lang_to: "Türkçeye geç",
+      eyebrow: "Personal observatory", def_word: "noun", def_text: "Turkish for sky; the blue expanse above us.",
+      lead: "I write code, keep learning, and collect what I build here like a star catalogue. Every repository is a star, as bright as the ★ it has earned.",
+      cta_catalog: "Browse the catalogue", cta_github: "GitHub profile",
+      hint: "Move your cursor across the sky; the marked stars are my repositories.", hint_touch: "Tap the sky; the marked stars are my repositories.",
+      stat_repos: "Public repos", stat_stars: "Total ★", stat_followers: "Followers", stat_since: "Observing since",
+      catalog_eyebrow: "Star catalogue", catalog_title: "My repositories, starting with the one I touched last.",
+      catalog_lead: "Catalogue number, repository, spectral class (language), magnitude (★) and last observation. Click a row to open the repo.",
+      col_no: "Cat. no", col_name: "Object", col_class: "Spectral class", col_mag: "Magnitude", col_seen: "Last seen",
+      spectrum: "Spectrum", spectrum_note: "language mix across repos",
+      example_note: "There are no public repositories yet, so example entries are shown. The catalogue fills itself once you create a public repo on GitHub.",
+      error_note: "GitHub can't be reached right now, so example entries are shown. Reload the page in a few minutes.",
+      loading: "Scanning the sky…", no_desc: "No description yet.", unknown_lang: "Unclassified", example: "example",
+      log_eyebrow: "Logbook", log_title: "Moments on record.", log_lead: "Compiled automatically from GitHub; newest first.",
+      log_joined: "Joined GitHub. Observation began.", log_first: "First public repo launched: {name}", log_latest: "Latest observation: {name} was updated.",
+      log_none: "Waiting for entries. This fills in once GitHub data arrives.",
+      contact_eyebrow: "Send a signal", contact_title_a: "Let's build", contact_title_b: "something together.",
+      contact_lead: "Have a project idea, a bug report or a suggestion? Reach me on GitHub.",
+      copy: "Copy", copied: "Email copied", copy_fail: "Couldn't copy. Select the address and copy it manually.",
+      footer: "This sky is redrawn on every visit.", to_top: "Back to top ↑"
+    }
+  };
+
+  let lang = store.get("gok-lang") || ((navigator.language || "tr").toLowerCase().startsWith("tr") ? "tr" : "en");
+  const t = (k, vars = {}) => (I18N[lang][k] ?? I18N.tr[k] ?? k).replace(/\{(\w+)\}/g, (_, v) => vars[v] ?? "");
+
+  const LANG_COLORS = {
+    JavaScript: "#d4a90b", TypeScript: "#3178c6", Python: "#3572a5", HTML: "#e34c26", CSS: "#7a4bc0",
+    SCSS: "#c6538c", Java: "#b07219", "C++": "#f34b7d", C: "#7d84a6", "C#": "#2e9a3a", Go: "#00add8",
+    Rust: "#dea584", Shell: "#6fbf3a", Swift: "#f05138", Kotlin: "#a97bff", PHP: "#4f5d95", Ruby: "#b3262a",
+    Dart: "#00b4ab", Vue: "#41b883", Svelte: "#ff3e00", Lua: "#4a5bd6", "Jupyter Notebook": "#da5b0b"
+  };
+  const langColor = (l) => LANG_COLORS[l] || "var(--ink-soft)";
+
+  /* ---------- Names ---------- */
+  const parts = CONFIG.name.trim().split(/\s+/);
+  document.querySelectorAll("[data-name-full]").forEach((el) => (el.textContent = CONFIG.name));
+  $("[data-name-first]").textContent = parts.length > 1 ? parts.slice(0, -1).join(" ") : "";
+  $("[data-name-last]").textContent = parts[parts.length - 1];
+  for (const id of ["#handle", "#ghLink", "#bigLink"]) $(id).href = profileUrl;
+  $("#handle").textContent = "@" + CONFIG.username;
+  $("#bigLink").firstChild.textContent = `github.com/${CONFIG.username} `;
+  $("#year").textContent = new Date().getFullYear();
+
+  /* ---------- Theme ---------- */
+  const isDark = () => (root.dataset.theme ? root.dataset.theme === "dark" : darkMQ.matches);
+  function syncTheme() {
+    root.classList.toggle("is-dark", isDark());
+    $("#themeLabel").textContent = isDark() ? t("theme_night") : t("theme_day");
+    $("#themeBtn").setAttribute("aria-label", isDark() ? t("to_day") : t("to_night"));
+    sky && sky.refreshColors();
+  }
+  $("#themeBtn").addEventListener("click", () => {
+    root.dataset.theme = isDark() ? "light" : "dark";
+    store.set("gok-theme", root.dataset.theme);
+    syncTheme();
+  });
+  darkMQ.addEventListener("change", syncTheme);
+
+  /* ---------- Language ---------- */
+  function applyLang() {
+    root.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
+    if (matchMedia("(hover: none)").matches) $("#hint").textContent = t("hint_touch");
+    $("#langBtn").textContent = lang === "tr" ? "EN" : "TR";
+    $("#langBtn").setAttribute("aria-label", t("lang_to"));
+    syncTheme();
+    render();
+  }
+  $("#langBtn").addEventListener("click", () => {
+    lang = lang === "tr" ? "en" : "tr";
+    store.set("gok-lang", lang);
+    applyLang();
+  });
+
+  /* ---------- Helpers ---------- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let r = Math.imul(a ^ (a >>> 15), 1 | a);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hash(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  const catNo = (i) => "KG-" + String(i + 1).padStart(3, "0");
+  function relTime(iso) {
+    const diff = (new Date(iso) - Date.now()) / 1000;
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    const units = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
+    for (const [u, s] of units) if (Math.abs(diff) >= s || u === "minute") return rtf.format(Math.round(diff / s), u);
+  }
+  const fmtDate = (iso) => new Date(iso).toISOString().slice(0, 10);
+  const fmtNum = (n) => (typeof n === "number" ? new Intl.NumberFormat(lang).format(n) : "—");
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  const EXAMPLES = [
+    { name: "gok-atlas", description: { tr: "Bu landing page: canvas ile çizilen canlı bir yıldız haritası.", en: "This landing page: a live star chart drawn on canvas." }, language: "JavaScript", stargazers_count: 12, pushed_at: daysAgo(2), created_at: daysAgo(40) },
+    { name: "hava-durumu-cli", description: { tr: "Terminalden şehir bazlı hava durumu sorgulayan küçük bir araç.", en: "A small tool that checks the weather by city from the terminal." }, language: "Python", stargazers_count: 5, pushed_at: daysAgo(9), created_at: daysAgo(120) },
+    { name: "todo-react", description: { tr: "Yerel depolamalı, klavyeyle yönetilen yapılacaklar listesi.", en: "Keyboard-driven to-do list with local storage." }, language: "TypeScript", stargazers_count: 3, pushed_at: daysAgo(26), created_at: daysAgo(200) },
+    { name: "algoritmalar", description: { tr: "Çözdüğüm algoritma sorularının notlu çözümleri.", en: "Annotated solutions to algorithm problems I've solved." }, language: "C++", stargazers_count: 1, pushed_at: daysAgo(64), created_at: daysAgo(300) },
+    { name: "dotfiles", description: { tr: "Terminal ve editör ayarlarım.", en: "My terminal and editor setup." }, language: "Shell", stargazers_count: 0, pushed_at: daysAgo(130), created_at: daysAgo(400) }
+  ].map((r) => ({ ...r, html_url: profileUrl, example: true }));
+
+  /* ---------- Data ---------- */
+  let state = { status: "loading", user: null, repos: [], all: [], example: false };
+
+  async function load() {
+    const key = "gok-cache-" + CONFIG.username;
+    try {
+      const c = JSON.parse(store.get(key) || "null");
+      if (c && Date.now() - c.t < 30 * 60 * 1000) return setData(c.user, c.repos);
+    } catch (e) {}
+    try {
+      const api = "https://api.github.com/users/" + encodeURIComponent(CONFIG.username);
+      const [u, r] = await Promise.all([fetch(api), fetch(api + "/repos?per_page=100&sort=pushed")]);
+      if (!u.ok || !r.ok) throw new Error("GitHub " + u.status + "/" + r.status);
+      const user = await u.json();
+      const repos = (await r.json()).map((x) => ({
+        name: x.name, description: x.description, language: x.language, stargazers_count: x.stargazers_count,
+        pushed_at: x.pushed_at, created_at: x.created_at, html_url: x.html_url, fork: x.fork
+      }));
+      const slimUser = { created_at: user.created_at, followers: user.followers, public_repos: user.public_repos };
+      store.set(key, JSON.stringify({ t: Date.now(), user: slimUser, repos }));
+      setData(slimUser, repos);
+    } catch (e) {
+      state = { status: "error", user: null, repos: EXAMPLES, all: [], example: true };
+      render();
+    }
+  }
+
+  function setData(user, repos) {
+    const list = repos
+      .filter((r) => !(CONFIG.hideForks && r.fork))
+      .sort((a, b) => {
+        const pa = CONFIG.pinned.indexOf(a.name), pb = CONFIG.pinned.indexOf(b.name);
+        if (pa !== pb) return (pa === -1 ? 1e9 : pa) - (pb === -1 ? 1e9 : pb);
+        return new Date(b.pushed_at) - new Date(a.pushed_at);
+      })
+      .slice(0, CONFIG.maxRepos);
+    state = { status: "ok", user, all: repos, repos: list.length ? list : EXAMPLES, example: !list.length };
+    render();
+  }
+
+  /* ---------- Render ---------- */
+  const desc = (r) => (r.description && typeof r.description === "object" ? r.description[lang] : r.description) || t("no_desc");
+
+  function render() {
+    if (state.status === "loading") return;
+    const { user, all, repos } = state;
+
+    $("#s-repos").textContent = user ? fmtNum(user.public_repos) : "—";
+    $("#s-stars").textContent = user ? fmtNum(all.reduce((s, r) => s + (r.stargazers_count || 0), 0)) : "—";
+    $("#s-followers").textContent = user ? fmtNum(user.followers) : "—";
+    $("#s-since").textContent = user ? new Date(user.created_at).getFullYear() : "—";
+
+    const note = $("#note");
+    note.hidden = !state.example;
+    $("#noteText").textContent = state.status === "error" ? t("error_note") : t("example_note");
+
+    // Spectrum
+    const counts = {};
+    repos.forEach((r) => { const l = r.language || t("unknown_lang"); counts[l] = (counts[l] || 0) + 1; });
+    const langs = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    $("#specBar").innerHTML = langs.map(([l, n]) => `<span style="--c:${langColor(l)};flex-grow:${n}" title="${escapeHtml(l)}"></span>`).join("");
+    $("#specLegend").innerHTML = langs.map(([l, n]) =>
+      `<span><i class="dot" style="--c:${langColor(l)}"></i><b>${escapeHtml(l)}</b> ${Math.round((n / repos.length) * 100)}%</span>`).join("");
+
+    // Catalogue
+    const maxStars = Math.max(1, ...repos.map((r) => r.stargazers_count || 0));
+    $("#catalogList").innerHTML = repos.map((r, i) => {
+      const s = r.stargazers_count || 0;
+      const size = 5 + Math.round((Math.log2(1 + s) / Math.log2(1 + maxStars)) * 7);
+      return `<li><a class="cat-row" id="${catNo(i).toLowerCase()}" data-idx="${i}" href="${escapeHtml(r.html_url)}" target="_blank" rel="noreferrer">
+        <span class="c-no">${catNo(i)}${r.example ? `<span class="badge">${t("example")}</span>` : ""}</span>
+        <span class="c-obj"><strong>${escapeHtml(r.name)}<span class="arrow" aria-hidden="true">↗</span></strong><span>${escapeHtml(desc(r))}</span></span>
+        <span class="c-cls"><i class="dot" style="--c:${langColor(r.language)}"></i>${escapeHtml(r.language || t("unknown_lang"))}</span>
+        <span class="c-mag"><i style="width:${size}px;height:${size}px;opacity:${s ? 1 : 0.3}" aria-hidden="true"></i>★ ${fmtNum(s)}</span>
+        <span class="c-seen"><time datetime="${r.pushed_at}" title="${fmtDate(r.pushed_at)}">${relTime(r.pushed_at)}</time></span>
+      </a></li>`;
+    }).join("");
+    document.querySelectorAll(".cat-row").forEach((row) => {
+      const i = +row.dataset.idx;
+      row.addEventListener("mouseenter", () => sky.highlight(i));
+      row.addEventListener("mouseleave", () => sky.highlight(-1));
+      row.addEventListener("focus", () => sky.highlight(i));
+      row.addEventListener("blur", () => sky.highlight(-1));
+    });
+
+    // Logbook
+    const entries = [];
+    if (user) entries.push({ date: user.created_at, text: t("log_joined") });
+    const real = all.filter((r) => !(CONFIG.hideForks && r.fork));
+    if (real.length) {
+      const first = real.reduce((a, b) => (new Date(a.created_at) < new Date(b.created_at) ? a : b));
+      const latest = real.reduce((a, b) => (new Date(a.pushed_at) > new Date(b.pushed_at) ? a : b));
+      entries.push({ date: first.created_at, html: t("log_first", { name: `<a href="${escapeHtml(first.html_url)}" target="_blank" rel="noreferrer">${escapeHtml(first.name)}</a>` }) });
+      if (latest !== first) entries.push({ date: latest.pushed_at, html: t("log_latest", { name: `<a href="${escapeHtml(latest.html_url)}" target="_blank" rel="noreferrer">${escapeHtml(latest.name)}</a>` }) });
+    }
+    CONFIG.log.forEach((e) => entries.push({ date: e.date, text: e[lang] || e.tr || e.en }));
+    entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+    $("#logList").innerHTML = entries.length
+      ? entries.map((e) => `<li><time datetime="${e.date}">${fmtDate(e.date)}</time><p>${e.html || escapeHtml(e.text)}</p></li>`).join("")
+      : `<li><time>—</time><p>${t("log_none")}</p></li>`;
+
+    sky.setRepos(repos);
+  }
+
+  /* ---------- Contact ---------- */
+  if (CONFIG.email) {
+    $("#mailRow").hidden = false;
+    $("#mailText").textContent = CONFIG.email;
+  }
+  let toastTimer;
+  function toast(msg) {
+    const el = $("#toast");
+    el.textContent = msg; el.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+  $("#copyBtn").addEventListener("click", () => {
+    const sel = () => { const r = document.createRange(); r.selectNodeContents($("#mailText")); getSelection().removeAllRanges(); getSelection().addRange(r); };
+    if (!navigator.clipboard) { sel(); return toast(t("copy_fail")); }
+    navigator.clipboard.writeText(CONFIG.email).then(() => toast(t("copied")), () => { sel(); toast(t("copy_fail")); });
+  });
+
+  /* ---------- Sky ---------- */
+  const sky = (function createSky(section, canvas) {
+    const ctx = canvas.getContext("2d");
+    let w = 0, h = 0, stars = [], rstars = [], path = [], repos = [];
+    let mouse = null, hoverIdx = -1, hl = -1, colors = {}, born = performance.now();
+    let visible = true, rafId = 0;
+    const LENS = 150;
+
+    function refreshColors() {
+      const cs = getComputedStyle(root);
+      for (const k of ["star", "ink", "ink-soft", "sun", "azure", "line", "line-strong"]) colors[k] = cs.getPropertyValue("--" + k).trim();
+      colors.dark = isDark();
+      kick();
+    }
+
+    function resize() {
+      const rect = section.getBoundingClientRect();
+      w = rect.width; h = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      canvas.style.width = w + "px"; canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const rnd = mulberry32(hash(CONFIG.username));
+      const n = Math.max(140, Math.min(720, Math.round((w * h) / 2300)));
+      stars = Array.from({ length: n }, () => {
+        const m = rnd();
+        return { x: rnd() * w, y: rnd() * h, r: 0.35 + m * m * m * 1.6, a: 0.25 + rnd() * 0.6, sp: 0.4 + rnd() * 1.6, ph: rnd() * 6.283 };
+      });
+      placeRepos();
+      kick();
+    }
+
+    const wide = () => w > 900;
+
+    function placeRepos() {
+      if (!w) return;
+      const reg = wide() ? { x0: 0.56, x1: 0.95, y0: 0.14, y1: 0.8 } : { x0: 0.1, x1: 0.9, y0: 0.06, y1: 0.9 };
+      rstars = [];
+      repos.forEach((r, i) => {
+        const rnd = mulberry32(hash(r.name));
+        let best = null, bestD = -1;
+        for (let k = 0; k < 50; k++) {
+          const c = { x: (reg.x0 + rnd() * (reg.x1 - reg.x0)) * w, y: (reg.y0 + rnd() * (reg.y1 - reg.y0)) * h };
+          const d = rstars.reduce((m, s) => Math.min(m, Math.hypot(s.x - c.x, s.y - c.y)), Infinity);
+          if (d > bestD) { bestD = d; best = c; }
+        }
+        rstars.push({ ...best, i, r: 2.6 + Math.log2(1 + (r.stargazers_count || 0)) * 1.2, name: r.name });
+      });
+      path = rstars.slice().sort((a, b) => new Date(repos[a.i].pushed_at) - new Date(repos[b.i].pushed_at));
+    }
+
+    function drawGraticule() {
+      ctx.save();
+      ctx.strokeStyle = colors.line; ctx.lineWidth = 1; ctx.setLineDash([2, 7]);
+      ctx.fillStyle = colors["ink-soft"]; ctx.globalAlpha = 0.8;
+      ctx.font = `10px ${getComputedStyle(root).getPropertyValue("--font-mono")}`;
+      const cols = wide() ? 8 : 4, rows = 6;
+      for (let c = 1; c < cols; c++) {
+        const x = (c / cols) * w;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.fillText(Math.round((c / cols) * 24) + "h", x + 5, 16);
+      }
+      for (let rr = 1; rr < rows; rr++) {
+        const y = (rr / rows) * h;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        const dec = Math.round(90 - (rr / rows) * 180);
+        ctx.fillText((dec > 0 ? "+" : "") + dec + "°", w - 34, y - 5);
+      }
+      ctx.restore();
+    }
+
+    function draw(now) {
+      ctx.clearRect(0, 0, w, h);
+      const still = reduceMotion.matches;
+      const time = now / 1000;
+      drawGraticule();
+
+      // Field stars
+      const lensStars = [];
+      ctx.fillStyle = colors.star;
+      for (const s of stars) {
+        let a = s.a * (still ? 0.85 : 0.6 + 0.4 * Math.sin(time * s.sp + s.ph));
+        let r = s.r;
+        if (mouse) {
+          const d = Math.hypot(s.x - mouse.x, s.y - mouse.y);
+          if (d < LENS) { const k = 1 - d / LENS; a = Math.min(1, a + k * 0.7); r *= 1 + k; if (lensStars.length < 48) lensStars.push(s); }
+        }
+        ctx.globalAlpha = colors.dark ? a : a * 0.75;
+        ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 6.283); ctx.fill();
+      }
+
+      // Lens: ring + ad-hoc constellation of nearby stars
+      if (mouse) {
+        ctx.strokeStyle = colors.azure; ctx.lineWidth = 0.8;
+        for (const s of lensStars) {
+          const near = lensStars.filter((o) => o !== s).map((o) => [o, Math.hypot(o.x - s.x, o.y - s.y)]).sort((a, b) => a[1] - b[1]).slice(0, 2);
+          for (const [o, d] of near) {
+            if (d > 90) continue;
+            ctx.globalAlpha = 0.45 * (1 - Math.hypot(s.x - mouse.x, s.y - mouse.y) / LENS);
+            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(o.x, o.y); ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 0.6; ctx.strokeStyle = colors["line-strong"]; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, LENS, 0, 6.283); ctx.stroke();
+        for (let k = 0; k < 4; k++) {
+          const ang = k * Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(mouse.x + Math.cos(ang) * (LENS - 8), mouse.y + Math.sin(ang) * (LENS - 8));
+          ctx.lineTo(mouse.x + Math.cos(ang) * (LENS + 8), mouse.y + Math.sin(ang) * (LENS + 8));
+          ctx.stroke();
+        }
+      }
+
+      // Repo constellation, drawn in order of last push
+      const p = still ? 1 : Math.min(1, Math.max(0, (now - born - 300) / 2000));
+      const ease = 1 - Math.pow(1 - p, 3);
+      const segs = Math.max(0, path.length - 1);
+      const drawn = ease * segs;
+      ctx.save();
+      ctx.strokeStyle = colors.sun; ctx.lineWidth = 1.2; ctx.setLineDash([5, 6]); ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      for (let k = 0; k < segs && k < drawn; k++) {
+        const a = path[k], b = path[k + 1], f = Math.min(1, drawn - k);
+        ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      const font = getComputedStyle(root).getPropertyValue("--font-mono");
+      path.forEach((s, k) => {
+        if (!still && k > drawn + 0.001 && segs > 0) return;
+        const active = s.i === hl || s.i === hoverIdx;
+        const pulse = still ? 0 : Math.sin(time * 2 + s.i) * 0.8;
+        const glowR = s.r * (colors.dark ? 7 : 5) + (active ? 10 : 0);
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+        g.addColorStop(0, colors.sun); g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalAlpha = colors.dark ? (active ? 0.55 : 0.3) : (active ? 0.3 : 0.14);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, glowR, 0, 6.283); ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = colors.dark ? colors.star : colors.ink;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r + (active ? 1.5 : 0), 0, 6.283); ctx.fill();
+        ctx.strokeStyle = colors.sun; ctx.lineWidth = active ? 1.6 : 1;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 5 + pulse + (active ? 4 : 0), 0, 6.283); ctx.stroke();
+
+        if (wide() || active) {
+          const lx = s.x + s.r + 12, ly = s.y + 4;
+          ctx.font = `500 10px ${font}`;
+          ctx.fillStyle = colors.sun; ctx.fillText(catNo(s.i), lx, ly - 7);
+          ctx.font = `${active ? 600 : 400} 11.5px ${font}`;
+          ctx.fillStyle = colors.ink; ctx.globalAlpha = active ? 1 : 0.8;
+          ctx.fillText(s.name.length > 22 ? s.name.slice(0, 21) + "…" : s.name, lx, ly + 7);
+          ctx.globalAlpha = 1;
+        }
+      });
+    }
+
+    function loop(now) {
+      draw(now);
+      const settling = now - born < 2600;
+      rafId = visible && (!reduceMotion.matches || settling) ? requestAnimationFrame(loop) : 0;
+    }
+    function kick() { if (!rafId && w) rafId = requestAnimationFrame(loop); }
+
+    function readout(x, y) {
+      const ra = (x / w) * 24, dec = 90 - (y / h) * 180;
+      const hh = Math.floor(ra), mm = Math.floor((ra - hh) * 60), ss = Math.floor(((ra - hh) * 60 - mm) * 60);
+      const ad = Math.abs(dec), dd = Math.floor(ad), dm = Math.floor((ad - dd) * 60);
+      const pad = (n) => String(n).padStart(2, "0");
+      let txt = `RA ${pad(hh)}h ${pad(mm)}m ${pad(ss)}s · Dec ${dec < 0 ? "−" : "+"}${pad(dd)}° ${pad(dm)}′`;
+      if (hoverIdx >= 0) txt += ` · <b>${catNo(hoverIdx)} ${escapeHtml(repos[hoverIdx].name)}</b>`;
+      $("#readout").innerHTML = txt;
+    }
+
+    section.addEventListener("pointermove", (e) => {
+      const rect = section.getBoundingClientRect();
+      mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const hit = rstars.find((s) => Math.hypot(s.x - mouse.x, s.y - mouse.y) < s.r + 14);
+      hoverIdx = hit ? hit.i : -1;
+      canvas.style.cursor = "";
+      section.style.cursor = hit && !e.target.closest("a,button") ? "pointer" : "";
+      readout(mouse.x, mouse.y);
+      kick();
+    });
+    section.addEventListener("pointerleave", () => { mouse = null; hoverIdx = -1; section.style.cursor = ""; kick(); });
+    section.addEventListener("click", (e) => {
+      if (hoverIdx < 0 || e.target.closest("a,button")) return;
+      const row = document.getElementById(catNo(hoverIdx).toLowerCase());
+      if (!row) return;
+      row.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "center" });
+      row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+    });
+
+    new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (visible) kick(); }).observe(section);
+    let resizeRaf = 0;
+    new ResizeObserver(() => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(resize); }).observe(section);
+
+    return {
+      refreshColors,
+      setRepos(list) { const fresh = repos.length === 0; repos = list; placeRepos(); if (fresh) born = performance.now(); kick(); },
+      highlight(i) {
+        hl = i;
+        document.querySelectorAll(".cat-row.is-hl").forEach((el) => el.classList.remove("is-hl"));
+        kick();
+      }
+    };
+  })($("#sky"), $("#skyCanvas"));
+
+  applyLang();
+  if (document.fonts) document.fonts.ready.then(() => sky.refreshColors());
+  load();
+})();
+</script>
+</body>
+</html>
